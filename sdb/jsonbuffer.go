@@ -30,8 +30,8 @@ var (
 	strBackslashZero      = []byte(`\u0000`)
 )
 
-// NewJsonateBuffer factory
-func NewJsonateBuffer() *JsonBuffer {
+// NewJsonBuffer factory
+func NewJsonBuffer() *JsonBuffer {
 	return (*JsonBuffer)(bytebufferpool.Get())
 }
 
