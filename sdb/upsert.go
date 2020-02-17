@@ -111,8 +111,12 @@ func (u *UpsertStatement) Record(values interface{}) {
 	u.sql.Append("(")
 
 	for i, col := range u.columns {
-		if reflect.ValueOf(m[col]).Kind() == reflect.Ptr && reflect.ValueOf(m[col]).IsNil() {
-			u.sql.Append("NULL")
+		if reflect.ValueOf(m[col]).Kind() == reflect.Ptr {
+			if reflect.ValueOf(m[col]).IsNil() {
+				u.sql.Append("NULL")
+			} else {
+				u.sql.Append("'" + EscapeString(fmt.Sprint(reflect.Indirect(reflect.ValueOf(m[col])))) + "'")
+			}
 		} else {
 			u.sql.Append("'" + EscapeString(fmt.Sprint(m[col])) + "'")
 		}
