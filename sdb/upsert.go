@@ -1,12 +1,13 @@
 package sdb
- 
+
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/fatih/structs"
 )
-  
+
 // EscapeString returns mysql escaped string
 func EscapeString(sql string) string {
 	replacer := strings.NewReplacer("\\", "\\\\",
@@ -19,7 +20,7 @@ func EscapeString(sql string) string {
 		"\x1a", "\\Z")
 
 	return replacer.Replace(sql)
-} 
+}
 
 // UpsertStatement helper for creating upsert statement
 type UpsertStatement struct {
@@ -108,11 +109,18 @@ func (u *UpsertStatement) Record(values interface{}) {
 	u.recordSet = true
 
 	u.sql.Append("(")
+
 	for i, col := range u.columns {
-		u.sql.Append("'" + EscapeString(fmt.Sprint(m[col])) + "'")
+		if reflect.ValueOf(m[col]).Kind() == reflect.Ptr && reflect.ValueOf(m[col]).IsNil() {
+			u.sql.Append("NULL")
+		} else {
+			u.sql.Append("'" + EscapeString(fmt.Sprint(m[col])) + "'")
+		}
+
 		if i < len(u.columns)-1 {
 			u.sql.Append(",")
 		}
 	}
+
 	u.sql.Append("),")
 }
