@@ -123,6 +123,42 @@ func TestParseDateOnly(t *testing.T) {
 
 func TestFormat(t *testing.T) {
 	type args struct {
+		format string
+		t      uint
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "date only",
+			args: args{
+				format: "02.01.2006",
+				t:      1481328000,
+			},
+			want: "10.12.2016",
+		},
+		{
+			name: "date only",
+			args: args{
+				format: time.RFC3339,
+				t:      1481414399,
+			},
+			want: "2016-12-11T00:59:59+01:00",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := stime.Format(tt.args.format, tt.args.t); got != tt.want {
+				t.Errorf("Format() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFormatDate(t *testing.T) {
+	type args struct {
 		t uint
 	}
 	tests := []struct {
@@ -147,7 +183,7 @@ func TestFormat(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := stime.Format(tt.args.t); got != tt.want {
+			if got := stime.FormatDate(tt.args.t); got != tt.want {
 				t.Errorf("Format() = %v, want %v", got, tt.want)
 			}
 		})

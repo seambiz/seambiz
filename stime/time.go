@@ -37,8 +37,14 @@ func ParseDateOnly(datum string) (int, error) {
 	return t.Year()*10000 + int(t.Month()*100) + t.Day(), nil
 }
 
-// Format unix timestamp in german date notation
-func Format(t uint) string {
+// Format unix timestamp using `format` date notation
+func Format(format string, t uint) string {
+	date := time.Unix(int64(t), 0)
+	return date.Format(format)
+}
+
+// FormatDate unix timestamp in german date notation
+func FormatDate(t uint) string {
 	date := time.Unix(int64(t), 0)
 	return date.Format("02.01.2006")
 }
