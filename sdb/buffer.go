@@ -156,3 +156,36 @@ func (s *SQLStatement) Fields(prepend string, prefix string, fields []string) {
 		s.AppendRaw(" ")
 	}
 }
+
+// AppendFields helper for adding fields so a select statement.
+func (s *SQLStatement) AppendFields(prepend string, prefix string, separator string, append string, fields []string) {
+	s.buffer.WriteString(prepend)
+
+	for i, f := range fields {
+		if i > 0 {
+			s.buffer.WriteString(separator)
+		}
+
+		s.buffer.WriteString(prefix)
+		s.buffer.WriteString(f)
+	}
+
+	s.buffer.WriteString(append)
+}
+
+// AppendFiller helper for adding placeholder to a insert statement.
+func (s *SQLStatement) AppendFiller(prepend string, separator string, append string, filler string, n int) {
+	if prepend != "" {
+		s.buffer.WriteString(prepend)
+	}
+
+	for i := 0; i < n; i++ {
+		if i > 0 {
+			s.buffer.WriteString(separator)
+		}
+
+		s.AppendStr(filler)
+	}
+
+	s.buffer.WriteString(append)
+}

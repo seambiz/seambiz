@@ -42,3 +42,27 @@ func BenchmarkAppendBytes(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkAppendFields(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		sql := NewSQLStatement()
+		for pb.Next() {
+			for i := 0; i < 100; i++ {
+				sql.AppendFields("SELECT ", "A.", ",", " FROM table A", []string{"f1", "f2", "f3"})
+			}
+			sql.Reset()
+		}
+	})
+}
+
+func BenchmarkAppendFiller(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		sql := NewSQLStatement()
+		for pb.Next() {
+			for i := 0; i < 100; i++ {
+				sql.AppendFiller("(", ",", ")", "?", 5)
+			}
+			sql.Reset()
+		}
+	})
+}

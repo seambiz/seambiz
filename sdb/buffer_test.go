@@ -34,7 +34,6 @@ func TestAppendRaw(t *testing.T) {
 	if got != "SELECT" {
 		t.Errorf("got '%s', want '%s'", got, "SELECT")
 	}
-
 }
 
 func TestAppendInt(t *testing.T) {
@@ -45,7 +44,6 @@ func TestAppendInt(t *testing.T) {
 	if got != "1521" {
 		t.Errorf("got '%s', want '%s'", got, "1521")
 	}
-
 }
 
 func TestFieldsSimple(t *testing.T) {
@@ -83,5 +81,108 @@ func TestFieldsCodegen(t *testing.T) {
 	want := "a.id, a.test, a.third ,b.id, b.test, b.third "
 	if got != want {
 		t.Errorf("got '%s', want '%s'", got, want)
+	}
+}
+
+func TestSQLStatement_AppendFields(t *testing.T) {
+	type args struct {
+		prepend   string
+		prefix    string
+		separator string
+		append    string
+		fields    []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "empy",
+			args: args{},
+			want: "",
+		},
+		{
+			name: "simple field list",
+			args: args{
+				separator: ",",
+				fields:    []string{"test", "yes"},
+			},
+			want: "test,yes",
+		},
+		{
+			name: "insert use case",
+			args: args{
+				prepend:   "(",
+				prefix:    "",
+				append:    ")",
+				separator: ",",
+				fields:    []string{"field1", "field2"},
+			},
+			want: "(field1,field2)",
+		},
+		{
+			name: "select use case",
+			args: args{
+				prepend:   "SELECT ",
+				prefix:    "A.",
+				append:    " FROM table A",
+				separator: ",",
+				fields:    []string{"field1", "field2"},
+			},
+			want: "SELECT A.field1,A.field2 FROM table A",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sql := sdb.NewSQLStatement()
+			sql.AppendFields(tt.args.prepend, tt.args.prefix, tt.args.separator, tt.args.append, tt.args.fields)
+			got := sql.Query()
+			if got != tt.want {
+				t.Errorf("got '%s', want '%s'", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSQLStatement_AppendFiller(t *testing.T) {
+	type args struct {
+		prepend   string
+		separator string
+		append    string
+		filler    string
+		n         int
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "empty",
+			args: args{},
+			want: "",
+		},
+		{
+			name: "insert use case",
+			args: args{
+				prepend:   "(",
+				append:    ")",
+				separator: ",",
+				filler:    "?",
+				n:         3,
+			},
+			want: "(?,?,?)",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sql := sdb.NewSQLStatement()
+			sql.AppendFiller(tt.args.prepend, tt.args.separator, tt.args.append, tt.args.filler, tt.args.n)
+			got := sql.Query()
+			if got != tt.want {
+				t.Errorf("got '%s', want '%s'", got, tt.want)
+			}
+		})
 	}
 }
