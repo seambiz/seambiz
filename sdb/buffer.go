@@ -32,7 +32,6 @@ type SQLStatement struct {
 // NewSQLStatement return bytebuffer for a statement
 func NewSQLStatement() *SQLStatement {
 	return sqlBuffer.Get().(*SQLStatement)
-	// return &SQLStatement{}
 }
 
 // String returns a string representation
@@ -44,6 +43,7 @@ func (s *SQLStatement) String() string {
 func (s *SQLStatement) Query() string {
 	defer s.buffer.Reset()
 	defer sqlBuffer.Put(s)
+
 	return s.buffer.String()
 }
 
@@ -64,7 +64,7 @@ func (s *SQLStatement) append(whitespace bool, values ...interface{}) {
 		}
 
 		if whitespace {
-			_, err := s.buffer.WriteString(" ")
+			_, err := s.buffer.Write([]byte(" "))
 			if err != nil {
 				panic(err)
 			}
@@ -82,6 +82,40 @@ func (s *SQLStatement) AppendRaw(values ...interface{}) {
 	s.append(false, values...)
 }
 
+// AppendStr a string to the sql statement and a space at the end
+func (s *SQLStatement) AppendStr(strs ...string) {
+	for _, str := range strs {
+		_, err := s.buffer.WriteString(str)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+// AppendStr a string to the sql statement and a space at the end
+func (s *SQLStatement) AppendStrs(prefix string, suffix string, strs ...string) {
+	for _, str := range strs {
+		s.AppendStr(prefix, str, suffix)
+	}
+}
+
+// AppendStr a string to the sql statement and a space at the end
+func (s *SQLStatement) AppendBytes(whitespace bool, bs ...[]byte) {
+	for _, b := range bs {
+		_, err := s.buffer.Write(b)
+		if err != nil {
+			panic(err)
+		}
+
+		if whitespace {
+			_, err := s.buffer.Write([]byte(" "))
+			if err != nil {
+				panic(err)
+			}
+		}
+	}
+}
+
 // appendUInt appends a string to the sql statement
 func (s *SQLStatement) appendUInt(n uint) {
 	s.buffer.Write(strconv.AppendInt(nil, int64(n), 10))
@@ -92,22 +126,33 @@ func (s *SQLStatement) AppendInt(n int) {
 	s.buffer.Write(strconv.AppendInt(nil, int64(n), 10))
 }
 
+// Reset the underlying buffer.
+func (s *SQLStatement) Reset() {
+	s.buffer.Reset()
+}
+
 // Fields appends alle fields from a struct
 func (s *SQLStatement) Fields(prepend string, prefix string, fields []string) {
 	if len(fields) > 0 {
 		var p string
+
 		if prefix != "" {
 			p = prefix + "."
 		}
+
 		if prepend != "" {
-			s.AppendRaw(prepend)
+			s.buffer.WriteString(prepend)
 		}
+
 		for i, f := range fields {
 			if i > 0 {
-				s.AppendRaw(`, `)
+				s.buffer.WriteString(", ")
 			}
-			s.AppendRaw(p, f)
+
+			s.buffer.WriteString(p)
+			s.buffer.WriteString(f)
 		}
+
 		s.AppendRaw(" ")
 	}
 }
