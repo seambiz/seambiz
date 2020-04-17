@@ -4,12 +4,20 @@ import (
 	"errors"
 	"strconv"
 	"time"
+	"unsafe"
 
 	"github.com/rs/zerolog/log"
 )
 
 // TimeFormat Sandard MySQL datetime format
 const TimeFormat = "2006-01-02 15:04:05.000000000"
+
+// toUnsafeString converts b to string without memory allocations.
+//
+// The returned string is valid only until b is reachable and unmodified.
+func toUnsafeString(b []byte) string {
+	return *(*string)(unsafe.Pointer(&b))
+}
 
 // ParseUint parses uint from buf.
 func ParseUint(buf []byte) (int, error) {
@@ -56,7 +64,7 @@ func ToInt(b []byte) int {
 	if b == nil {
 		return 0
 	}
-	i, err := strconv.Atoi(string(b))
+	i, err := strconv.Atoi(toUnsafeString(b))
 	if err != nil {
 		log.Error().Bytes("b", b).Msg("Atoi")
 		return 0
@@ -73,6 +81,7 @@ func ToBool(b []byte) bool {
 }
 
 // ToString conversion from sql.RawBytes
+// toUnsafeString is not used, because of the limited validity of the raw bytes.
 func ToString(b []byte) string {
 	if b == nil {
 		return ""
@@ -85,7 +94,7 @@ func ToInt64(b []byte) int64 {
 	if b == nil {
 		return 0
 	}
-	i, err := strconv.ParseInt(string(b), 10, 64)
+	i, err := strconv.ParseInt(toUnsafeString(b), 10, 64)
 	if err != nil {
 		log.Error().Bytes("b", b).Msg("ToInt64")
 		return 0
@@ -98,7 +107,7 @@ func ToUInt(b []byte) uint {
 	if b == nil {
 		return 0
 	}
-	i, err := strconv.ParseUint(string(b), 10, 32)
+	i, err := strconv.ParseUint(toUnsafeString(b), 10, 32)
 	if err != nil {
 		log.Error().Bytes("b", b).Msg("ToUInt")
 		return 0
@@ -111,7 +120,7 @@ func ToUInt64(b []byte) uint64 {
 	if b == nil {
 		return 0
 	}
-	i, err := strconv.ParseUint(string(b), 10, 64)
+	i, err := strconv.ParseUint(toUnsafeString(b), 10, 64)
 	if err != nil {
 		log.Error().Bytes("b", b).Msg("ToUInt64")
 		return 0
@@ -124,7 +133,7 @@ func ToFloat32(b []byte) float32 {
 	if b == nil {
 		return 0
 	}
-	f, err := strconv.ParseFloat(string(b), 32)
+	f, err := strconv.ParseFloat(toUnsafeString(b), 32)
 	if err != nil {
 		log.Error().Bytes("b", b).Msg("ToFloat32")
 		return 0
@@ -137,13 +146,12 @@ func ToFloat64(b []byte) float64 {
 	if b == nil {
 		return 0
 	}
-	f, err := strconv.ParseFloat(string(b), 64)
+	f, err := strconv.ParseFloat(toUnsafeString(b), 64)
 	if err != nil {
 		log.Error().Bytes("b", b).Msg("ToFloat64")
 		return 0
 	}
 	return f
-
 }
 
 // ToTime conversion from sql.RawBytes
@@ -152,7 +160,7 @@ func ToTime(b []byte) time.Time {
 		return time.Time{}
 	}
 	format := TimeFormat[:19]
-	s := string(b)
+	s := toUnsafeString(b)
 	switch len(s) {
 	case 8:
 		if s == "00:00:00" {
