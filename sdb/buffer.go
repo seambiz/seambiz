@@ -152,8 +152,6 @@ func (s *SQLStatement) Fields(prepend string, prefix string, fields []string) {
 			s.buffer.WriteString(p)
 			s.buffer.WriteString(f)
 		}
-
-		s.AppendRaw(" ")
 	}
 }
 
