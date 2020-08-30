@@ -1,3 +1,6 @@
+// Code taken from https://github.com/oceanicdev/chi-param
+// Copyright (c) 2018 Andrey Mak
+
 package param
 
 import (
