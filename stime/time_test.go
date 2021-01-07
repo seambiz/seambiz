@@ -1,6 +1,7 @@
 package stime_test
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -251,6 +252,60 @@ func TestFormatTime(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := stime.FormatTime(&tt.args.t); got != tt.want {
 				t.Errorf("FormatTime() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIn(t *testing.T) {
+	europeBerlin, err := time.LoadLocation("Europe/Berlin")
+	if err != nil {
+		t.Error("timezone could not be loaded")
+	}
+	americaLosAngeles, err := time.LoadLocation("America/Los_Angeles")
+	if err != nil {
+		t.Error("timezone could not be loaded")
+	}
+
+	type args struct {
+		unix    uint
+		locIANA string
+	}
+	tests := []struct {
+		name string
+		args args
+		want time.Time
+	}{
+		{
+			name: "empty loc",
+			args: args{
+				unix:    uint(time.Date(2013, 11, 18, 17, 51, 49, 0, time.UTC).Unix()),
+				locIANA: "",
+			},
+			want: time.Date(2013, 11, 18, 17, 51, 49, 0, time.UTC),
+		},
+		{
+			name: "europe",
+			args: args{
+				unix:    uint(time.Date(2013, 11, 18, 17, 51, 49, 0, time.UTC).Unix()),
+				locIANA: "Europe/Berlin",
+			},
+			want: time.Date(2013, 11, 18, 18, 51, 49, 0, europeBerlin),
+		},
+		{
+			name: "europe",
+			args: args{
+				unix:    uint(time.Date(2013, 11, 18, 17, 51, 49, 0, time.UTC).Unix()),
+				locIANA: "America/Los_Angeles",
+			},
+			want: time.Date(2013, 11, 18, 9, 51, 49, 0, americaLosAngeles),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := stime.In(tt.args.unix, tt.args.locIANA); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("In() = %v, want %v", got, tt.want)
 			}
 		})
 	}

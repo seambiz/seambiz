@@ -59,3 +59,18 @@ func FormatFull(t uint) string {
 func FormatTime(t *time.Time) string {
 	return t.Format("02.01.2006")
 }
+
+func In(unix uint, locIANA string) time.Time {
+	t := time.Unix(int64(unix), 0)
+
+	if locIANA == "" {
+		return t.In(time.UTC)
+	}
+
+	loc, err := time.LoadLocation(locIANA)
+	if err != nil {
+		return t.In(time.UTC)
+	}
+
+	return t.In(loc)
+}
