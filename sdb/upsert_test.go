@@ -49,7 +49,6 @@ func TestUpsertStatement_Record(t *testing.T) {
 				columns: tt.fields.columns,
 			}
 			u.Record(tt.args.values)
-			t.Log(u.String())
 		})
 	}
 }

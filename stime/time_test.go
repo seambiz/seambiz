@@ -141,7 +141,7 @@ func TestFormat(t *testing.T) {
 			want: "10.12.2016",
 		},
 		{
-			name: "date only",
+			name: "rfc3339",
 			args: args{
 				format: time.RFC3339,
 				t:      1481414399,
@@ -219,6 +219,52 @@ func TestFormatFull(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := stime.FormatFull(tt.args.t); got != tt.want {
 				t.Errorf("FormatFull() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestOtherTimezone(t *testing.T) {
+	type args struct {
+		t      uint
+		tz     string
+		format string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "los angeles",
+			args: args{
+				t:  1481328000,
+				tz: "America/Los_Angeles",
+			},
+			want: "2016-12-09T16:00:00-08:00",
+		},
+		{
+			name: "hongkong",
+			args: args{
+				t:  1481328000,
+				tz: "Asia/Hong_Kong",
+			},
+			want: "2016-12-10T08:00:00+08:00",
+		},
+		{
+			name: "date only",
+			args: args{
+				t:      1481328000,
+				tz:     "Asia/Hong_Kong",
+				format: "02.01.2006",
+			},
+			want: "10.12.2016",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := stime.FormatIn(tt.args.t, tt.args.tz, tt.args.format); got != tt.want {
+				t.Errorf("FormatIn() = %v, want %v", got, tt.want)
 			}
 		})
 	}
