@@ -25,3 +25,5 @@ jobs:
 
       - name: Semver Release Manager
         uses: home-furnishing-nordic/semver-release-manager@v1.0.1
+        with:
+          github_token: '${{ secrets.GITHUB_TOKEN }}'
