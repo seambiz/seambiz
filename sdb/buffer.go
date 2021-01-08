@@ -48,7 +48,7 @@ func (s *SQLStatement) Query() string {
 }
 
 // append a string to the sql statement and depending on @whitespace inserts a blank at the end
-func (s *SQLStatement) append(whitespace bool, values ...interface{}) {
+func (s *SQLStatement) append(whitespace bool, values ...interface{}) *SQLStatement {
 	for _, v := range values {
 		switch v := v.(type) {
 		case string:
@@ -70,37 +70,55 @@ func (s *SQLStatement) append(whitespace bool, values ...interface{}) {
 			}
 		}
 	}
+	return s
 }
 
 // Append a string to the sql statement and a space at the end
-func (s *SQLStatement) Append(values ...interface{}) {
-	s.append(true, values...)
+func (s *SQLStatement) Append(values ...interface{}) *SQLStatement {
+	return s.append(true, values...)
 }
 
 // AppendRaw a string to the sql statement and a space at the end
-func (s *SQLStatement) AppendRaw(values ...interface{}) {
-	s.append(false, values...)
+func (s *SQLStatement) AppendRaw(values ...interface{}) *SQLStatement {
+	return s.append(false, values...)
 }
 
 // AppendStr a string to the sql statement and a space at the end
-func (s *SQLStatement) AppendStr(strs ...string) {
+func (s *SQLStatement) AppendStr(strs ...string) *SQLStatement {
 	for _, str := range strs {
 		_, err := s.buffer.WriteString(str)
 		if err != nil {
 			panic(err)
 		}
 	}
+	return s
+}
+
+func (s *SQLStatement) InInt(ints []int) *SQLStatement {
+	if ints == nil {
+		return s
+	}
+
+	for i := range ints {
+		if i > 0 {
+			s.AppendStr(",")
+		}
+		s.AppendStr("?")
+	}
+
+	return s
 }
 
 // AppendStr a string to the sql statement and a space at the end
-func (s *SQLStatement) AppendStrs(prefix string, suffix string, strs ...string) {
+func (s *SQLStatement) AppendStrs(prefix string, suffix string, strs ...string) *SQLStatement {
 	for _, str := range strs {
 		s.AppendStr(prefix, str, suffix)
 	}
+	return s
 }
 
 // AppendStr a string to the sql statement and a space at the end
-func (s *SQLStatement) AppendBytes(whitespace bool, bs ...[]byte) {
+func (s *SQLStatement) AppendBytes(whitespace bool, bs ...[]byte) *SQLStatement {
 	for _, b := range bs {
 		_, err := s.buffer.Write(b)
 		if err != nil {
@@ -114,6 +132,7 @@ func (s *SQLStatement) AppendBytes(whitespace bool, bs ...[]byte) {
 			}
 		}
 	}
+	return s
 }
 
 // appendUInt appends a string to the sql statement
@@ -122,8 +141,9 @@ func (s *SQLStatement) appendUInt(n uint) {
 }
 
 // AppendInt appends a string to the sql statement
-func (s *SQLStatement) AppendInt(n int) {
+func (s *SQLStatement) AppendInt(n int) *SQLStatement {
 	s.buffer.Write(strconv.AppendInt(nil, int64(n), 10))
+	return s
 }
 
 // Reset the underlying buffer.
