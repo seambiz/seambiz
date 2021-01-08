@@ -99,11 +99,11 @@ func (s *SQLStatement) InInt(ints []int) *SQLStatement {
 		return s
 	}
 
-	for i := range ints {
+	for i, v := range ints {
 		if i > 0 {
 			s.AppendStr(",")
 		}
-		s.AppendStr("?")
+		s.AppendInt(v)
 	}
 
 	return s

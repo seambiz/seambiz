@@ -201,12 +201,12 @@ func TestSQLStatement_InInt(t *testing.T) {
 		{
 			name: "single",
 			args: []int{99},
-			want: "?",
+			want: "99",
 		},
 		{
 			name: "three",
 			args: []int{1, 2, 3},
-			want: "?,?,?",
+			want: "1,2,3",
 		},
 	}
 	for _, tt := range tests {
