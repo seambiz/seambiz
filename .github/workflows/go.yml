@@ -22,3 +22,6 @@ jobs:
 
       - name: Test
         run: go test -v ./...
+
+      - name: Semver Release Manager
+        uses: home-furnishing-nordic/semver-release-manager@v1.0.1
