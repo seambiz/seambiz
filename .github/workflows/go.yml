@@ -24,7 +24,7 @@ jobs:
         run: go test -v ./...
 
       - name: Tag
-        uses: K-Phoen/semver-release-action@master
+        uses: seambiz/semver-release-action@master
         with:
           release_branch: master
         env:
