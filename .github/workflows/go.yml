@@ -22,10 +22,3 @@ jobs:
 
       - name: Test
         run: go test -v ./...
-
-      - name: Tag
-        uses: seambiz/semver-release-action@master
-        with:
-          release_branch: master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
