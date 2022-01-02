@@ -1,0 +1,29 @@
+name: Go
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        run: go test -v ./...
+
+      - name: Semver Release Manager
+        uses: home-furnishing-nordic/semver-release-manager@v1.0.1
+        with:
+          github_token: '${{ secrets.GITHUB_TOKEN }}'

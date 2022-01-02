@@ -1,6 +1,7 @@
 package stime_test
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -140,7 +141,7 @@ func TestFormat(t *testing.T) {
 			want: "10.12.2016",
 		},
 		{
-			name: "date only",
+			name: "rfc3339",
 			args: args{
 				format: time.RFC3339,
 				t:      1481414399,
@@ -223,6 +224,52 @@ func TestFormatFull(t *testing.T) {
 	}
 }
 
+func TestOtherTimezone(t *testing.T) {
+	type args struct {
+		t      uint
+		tz     string
+		format string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "los angeles",
+			args: args{
+				t:  1481328000,
+				tz: "America/Los_Angeles",
+			},
+			want: "2016-12-09T16:00:00-08:00",
+		},
+		{
+			name: "hongkong",
+			args: args{
+				t:  1481328000,
+				tz: "Asia/Hong_Kong",
+			},
+			want: "2016-12-10T08:00:00+08:00",
+		},
+		{
+			name: "date only",
+			args: args{
+				t:      1481328000,
+				tz:     "Asia/Hong_Kong",
+				format: "02.01.2006",
+			},
+			want: "10.12.2016",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := stime.FormatIn(tt.args.t, tt.args.tz, tt.args.format); got != tt.want {
+				t.Errorf("FormatIn() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestFormatTime(t *testing.T) {
 	type args struct {
 		t time.Time
@@ -251,6 +298,60 @@ func TestFormatTime(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := stime.FormatTime(&tt.args.t); got != tt.want {
 				t.Errorf("FormatTime() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIn(t *testing.T) {
+	europeBerlin, err := time.LoadLocation("Europe/Berlin")
+	if err != nil {
+		t.Error("timezone could not be loaded")
+	}
+	americaLosAngeles, err := time.LoadLocation("America/Los_Angeles")
+	if err != nil {
+		t.Error("timezone could not be loaded")
+	}
+
+	type args struct {
+		unix    uint
+		locIANA string
+	}
+	tests := []struct {
+		name string
+		args args
+		want time.Time
+	}{
+		{
+			name: "empty loc",
+			args: args{
+				unix:    uint(time.Date(2013, 11, 18, 17, 51, 49, 0, time.UTC).Unix()),
+				locIANA: "",
+			},
+			want: time.Date(2013, 11, 18, 17, 51, 49, 0, time.UTC),
+		},
+		{
+			name: "europe",
+			args: args{
+				unix:    uint(time.Date(2013, 11, 18, 17, 51, 49, 0, time.UTC).Unix()),
+				locIANA: "Europe/Berlin",
+			},
+			want: time.Date(2013, 11, 18, 18, 51, 49, 0, europeBerlin),
+		},
+		{
+			name: "europe",
+			args: args{
+				unix:    uint(time.Date(2013, 11, 18, 17, 51, 49, 0, time.UTC).Unix()),
+				locIANA: "America/Los_Angeles",
+			},
+			want: time.Date(2013, 11, 18, 9, 51, 49, 0, americaLosAngeles),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := stime.In(tt.args.unix, tt.args.locIANA); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("In() = %v, want %v", got, tt.want)
 			}
 		})
 	}

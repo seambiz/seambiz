@@ -15,10 +15,10 @@ const (
 	TimeFormat = time.RFC3339
 )
 
-// toUnsafeString converts b to string without memory allocations.
+// ToUnsafeString converts b to string without memory allocations.
 //
 // The returned string is valid only until b is reachable and unmodified.
-func toUnsafeString(b []byte) string {
+func ToUnsafeString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
 
@@ -67,7 +67,7 @@ func ToInt(b []byte) int {
 	if b == nil {
 		return 0
 	}
-	i, err := strconv.Atoi(toUnsafeString(b))
+	i, err := strconv.Atoi(ToUnsafeString(b))
 	if err != nil {
 		log.Error().Bytes("b", b).Msg("Atoi")
 		return 0
@@ -97,7 +97,7 @@ func ToInt64(b []byte) int64 {
 	if b == nil {
 		return 0
 	}
-	i, err := strconv.ParseInt(toUnsafeString(b), 10, 64)
+	i, err := strconv.ParseInt(ToUnsafeString(b), 10, 64)
 	if err != nil {
 		log.Error().Bytes("b", b).Msg("ToInt64")
 		return 0
@@ -110,7 +110,7 @@ func ToUInt(b []byte) uint {
 	if b == nil {
 		return 0
 	}
-	i, err := strconv.ParseUint(toUnsafeString(b), 10, 32)
+	i, err := strconv.ParseUint(ToUnsafeString(b), 10, 32)
 	if err != nil {
 		log.Error().Bytes("b", b).Msg("ToUInt")
 		return 0
@@ -123,7 +123,7 @@ func ToUInt64(b []byte) uint64 {
 	if b == nil {
 		return 0
 	}
-	i, err := strconv.ParseUint(toUnsafeString(b), 10, 64)
+	i, err := strconv.ParseUint(ToUnsafeString(b), 10, 64)
 	if err != nil {
 		log.Error().Bytes("b", b).Msg("ToUInt64")
 		return 0
@@ -136,7 +136,7 @@ func ToFloat32(b []byte) float32 {
 	if b == nil {
 		return 0
 	}
-	f, err := strconv.ParseFloat(toUnsafeString(b), 32)
+	f, err := strconv.ParseFloat(ToUnsafeString(b), 32)
 	if err != nil {
 		log.Error().Bytes("b", b).Msg("ToFloat32")
 		return 0
@@ -149,7 +149,7 @@ func ToFloat64(b []byte) float64 {
 	if b == nil {
 		return 0
 	}
-	f, err := strconv.ParseFloat(toUnsafeString(b), 64)
+	f, err := strconv.ParseFloat(ToUnsafeString(b), 64)
 	if err != nil {
 		log.Error().Bytes("b", b).Msg("ToFloat64")
 		return 0
@@ -163,7 +163,7 @@ func ToTime(b []byte) time.Time {
 		return time.Time{}
 	}
 	format := TimeFormat[:19]
-	s := toUnsafeString(b)
+	s := ToUnsafeString(b)
 	if strings.Contains(s, "Z") {
 		format = time.RFC3339
 	}

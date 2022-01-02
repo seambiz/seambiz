@@ -2,6 +2,8 @@ package stime
 
 import "time"
 
+const TzGermany = "Europe/Berlin"
+
 // Now return unix timestamp as uint32
 func Now() uint {
 	t := time.Now().Unix()
@@ -39,23 +41,51 @@ func ParseDateOnly(datum string) (int, error) {
 
 // Format unix timestamp using `format` date notation
 func Format(format string, t uint) string {
-	date := time.Unix(int64(t), 0)
+	date := In(t, TzGermany)
 	return date.Format(format)
 }
 
 // FormatDate unix timestamp in german date notation
 func FormatDate(t uint) string {
-	date := time.Unix(int64(t), 0)
+	date := In(t, TzGermany)
 	return date.Format("02.01.2006")
 }
 
 // FormatFull unix timestamp into german date and time notation
 func FormatFull(t uint) string {
-	date := time.Unix(int64(t), 0)
+	date := In(t, TzGermany)
 	return date.Format("02.01.2006 15:04:05")
 }
 
 // FormatTime time.Time to german date notation
 func FormatTime(t *time.Time) string {
 	return t.Format("02.01.2006")
+}
+
+// FormatIn customer formatting with respective timezone
+func FormatIn(t uint, locIANA string, format string) string {
+	if locIANA == "" {
+		locIANA = TzGermany
+	}
+	if format == "" {
+		format = time.RFC3339
+	}
+
+	date := In(t, locIANA)
+	return date.Format(format)
+}
+
+func In(unix uint, locIANA string) time.Time {
+	t := time.Unix(int64(unix), 0)
+
+	if locIANA == "" {
+		return t.In(time.UTC)
+	}
+
+	loc, err := time.LoadLocation(locIANA)
+	if err != nil {
+		return t.In(time.UTC)
+	}
+
+	return t.In(loc)
 }

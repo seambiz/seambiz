@@ -52,7 +52,7 @@ func TestFieldsSimple(t *testing.T) {
 
 	sql.Fields("", "", fields)
 	got := sql.Query()
-	want := "id, test, third "
+	want := "id, test, third"
 	if got != want {
 		t.Errorf("got '%s', want '%s'", got, want)
 	}
@@ -64,7 +64,7 @@ func TestFieldsFull(t *testing.T) {
 
 	sql.Fields("'prepend', ", "abc", fields)
 	got := sql.Query()
-	want := "'prepend', abc.id, abc.test, abc.third "
+	want := "'prepend', abc.id, abc.test, abc.third"
 	if got != want {
 		t.Errorf("got '%s', want '%s'", got, want)
 	}
@@ -78,7 +78,7 @@ func TestFieldsCodegen(t *testing.T) {
 	sql.Fields("", "a", fields)
 	sql.Fields(",", "b", fields2)
 	got := sql.Query()
-	want := "a.id, a.test, a.third ,b.id, b.test, b.third "
+	want := "a.id, a.test, a.third,b.id, b.test, b.third"
 	if got != want {
 		t.Errorf("got '%s', want '%s'", got, want)
 	}
@@ -179,6 +179,40 @@ func TestSQLStatement_AppendFiller(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sql := sdb.NewSQLStatement()
 			sql.AppendFiller(tt.args.prepend, tt.args.separator, tt.args.append, tt.args.filler, tt.args.n)
+			got := sql.Query()
+			if got != tt.want {
+				t.Errorf("got '%s', want '%s'", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSQLStatement_InInt(t *testing.T) {
+	tests := []struct {
+		name string
+		args []int
+		want string
+	}{
+		{
+			name: "empty",
+			args: nil,
+			want: "",
+		},
+		{
+			name: "single",
+			args: []int{99},
+			want: "99",
+		},
+		{
+			name: "three",
+			args: []int{1, 2, 3},
+			want: "1,2,3",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sql := sdb.NewSQLStatement()
+			sql.InInt(tt.args)
 			got := sql.Query()
 			if got != tt.want {
 				t.Errorf("got '%s', want '%s'", got, tt.want)
