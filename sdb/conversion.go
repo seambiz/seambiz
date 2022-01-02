@@ -3,6 +3,7 @@ package sdb
 import (
 	"errors"
 	"strconv"
+	"strings"
 	"time"
 	"unsafe"
 
@@ -10,7 +11,9 @@ import (
 )
 
 // TimeFormat Sandard MySQL datetime format
-const TimeFormat = "2006-01-02 15:04:05.000000000"
+const (
+	TimeFormat = time.RFC3339
+)
 
 // toUnsafeString converts b to string without memory allocations.
 //
@@ -161,6 +164,9 @@ func ToTime(b []byte) time.Time {
 	}
 	format := TimeFormat[:19]
 	s := toUnsafeString(b)
+	if strings.Contains(s, "Z") {
+		format = time.RFC3339
+	}
 	switch len(s) {
 	case 8:
 		if s == "00:00:00" {
