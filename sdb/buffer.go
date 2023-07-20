@@ -31,7 +31,10 @@ type SQLStatement struct {
 
 // NewSQLStatement return bytebuffer for a statement
 func NewSQLStatement() *SQLStatement {
-	return &SQLStatement{}
+	s := &SQLStatement{}
+	s.buffer.Reset()
+
+	return s
 }
 
 // String returns a string representation
