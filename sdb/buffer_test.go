@@ -1,6 +1,8 @@
 package sdb_test
 
 import (
+	"math/rand"
+	"strconv"
 	"testing"
 
 	"github.com/seambiz/seambiz/sdb"
@@ -38,11 +40,15 @@ func TestAppendRaw(t *testing.T) {
 
 func TestAppendInt(t *testing.T) {
 	sql := sdb.NewSQLStatement()
-	sql.AppendRaw(1521)
 
-	got := sql.Query()
-	if got != "1521" {
-		t.Errorf("got '%s', want '%s'", got, "1521")
+	for i := 0; i < 100; i++ {
+		n := int(rand.Int31())
+		sql.AppendInt(n)
+
+		got := sql.Query()
+		if got != strconv.Itoa(n) {
+			t.Errorf("got '%s', want '%d'", got, n)
+		}
 	}
 }
 

@@ -17,6 +17,17 @@ func BenchmarkAppend(b *testing.B) {
 	})
 }
 
+func BenchmarkAppendInt(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		sql := NewSQLStatement()
+		for pb.Next() {
+			sql.AppendRaw(1521)
+
+			sql.Reset()
+		}
+	})
+}
+
 func BenchmarkAppendStr(b *testing.B) {
 	s := "foobarbaz"
 	b.RunParallel(func(pb *testing.PB) {

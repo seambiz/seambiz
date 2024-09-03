@@ -33,8 +33,8 @@ type UpsertStatement struct {
 
 func (u *UpsertStatement) appendOnDuplicateKey() {
 	if !u.appended && u.recordSet {
-		if u.sql.buffer.Bytes()[u.sql.buffer.Len()-2] == ',' {
-			u.sql.buffer.Truncate(u.sql.buffer.Len() - 2)
+		if u.sql.buffer[len(u.sql.buffer)-2] == ',' {
+			u.sql.buffer[len(u.sql.buffer)-2] = "\x00"[0]
 		}
 		u.sql.Append(" ON DUPLICATE KEY UPDATE")
 		u.sql.Append(u.onduplicatekeyupdate)
