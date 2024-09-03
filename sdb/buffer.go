@@ -48,6 +48,13 @@ func (s *SQLStatement) Query() string {
 	return s.String()
 }
 
+func (s *SQLStatement) Bytes() []byte {
+	defer sqlBuffer.Put(s)
+	defer s.Reset()
+
+	return s.buffer
+}
+
 // append a string to the sql statement and depending on @whitespace inserts a blank at the end
 func (s *SQLStatement) append(whitespace bool, values ...interface{}) *SQLStatement {
 	for _, v := range values {
