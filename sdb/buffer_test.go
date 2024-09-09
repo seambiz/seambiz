@@ -56,7 +56,7 @@ func TestFieldsSimple(t *testing.T) {
 	sql := sdb.NewSQLStatement()
 	fields := []string{"id", "test", "third"}
 
-	sql.Fields("", "", fields)
+	sql.Fields("", fields)
 	got := sql.Query()
 	want := "id, test, third"
 	if got != want {
@@ -68,9 +68,9 @@ func TestFieldsFull(t *testing.T) {
 	sql := sdb.NewSQLStatement()
 	fields := []string{"id", "test", "third"}
 
-	sql.Fields("'prepend', ", "abc", fields)
+	sql.Fields("abc", fields)
 	got := sql.Query()
-	want := "'prepend', abc.id, abc.test, abc.third"
+	want := "abc.id, abc.test, abc.third"
 	if got != want {
 		t.Errorf("got '%s', want '%s'", got, want)
 	}
@@ -81,10 +81,10 @@ func TestFieldsCodegen(t *testing.T) {
 	fields := []string{"id", "test", "third"}
 	fields2 := []string{"id", "test", "third"}
 
-	sql.Fields("", "a", fields)
-	sql.Fields(",", "b", fields2)
+	sql.Fields("a", fields)
+	sql.Fields("b", fields2)
 	got := sql.Query()
-	want := "a.id, a.test, a.third,b.id, b.test, b.third"
+	want := "a.id, a.test, a.third, b.id, b.test, b.third"
 	if got != want {
 		t.Errorf("got '%s', want '%s'", got, want)
 	}

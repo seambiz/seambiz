@@ -27,7 +27,8 @@ var sqlBuffer = &sync.Pool{
 
 // SQLStatement is a wrapper around bytepufferpool for nicer usage
 type SQLStatement struct {
-	buffer []byte
+	buffer       []byte
+	fieldsCalled bool
 }
 
 // NewSQLStatement return bytebuffer for a statement
@@ -159,6 +160,7 @@ func (s *SQLStatement) AppendInt(n int) *SQLStatement {
 // Reset the underlying buffer.
 func (s *SQLStatement) Reset() {
 	s.buffer = s.buffer[:0]
+	s.fieldsCalled = false
 }
 
 // Write implements io.Writer - it appends p to ByteBuffer.B
@@ -174,18 +176,23 @@ func (s *SQLStatement) WriteString(str string) (int, error) {
 }
 
 // Fields appends alle fields from a struct
-func (s *SQLStatement) Fields(prepend string, prefix string, fields []string) {
+func (s *SQLStatement) Fields(prefix string, fields []string) {
 	if len(fields) > 0 {
-		if prepend != "" {
-			s.WriteString(prepend)
+		if s.fieldsCalled {
+			s.WriteString(", ")
 		}
+		s.fieldsCalled = true
 
 		for i, f := range fields {
 			if i > 0 {
 				s.WriteString(", ")
 			}
 
-			s.AppendStr(prefix, ".", f)
+			if prefix != "" {
+				s.AppendStr(prefix, ".", f)
+			} else {
+				s.AppendStr(f)
+			}
 		}
 	}
 }
