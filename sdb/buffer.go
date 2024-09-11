@@ -179,13 +179,13 @@ func (s *SQLStatement) WriteString(str string) (int, error) {
 func (s *SQLStatement) Fields(prefix string, fields []string) {
 	if len(fields) > 0 {
 		if s.fieldsCalled {
-			s.WriteString(", ")
+			s.WriteString(",")
 		}
 		s.fieldsCalled = true
 
 		for i, f := range fields {
 			if i > 0 {
-				s.WriteString(", ")
+				s.WriteString(",")
 			}
 
 			if prefix != "" {
@@ -194,6 +194,8 @@ func (s *SQLStatement) Fields(prefix string, fields []string) {
 				s.AppendStr(f)
 			}
 		}
+
+		s.WriteString(" ")
 	}
 }
 
