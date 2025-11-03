@@ -226,3 +226,111 @@ func TestSQLStatement_InInt(t *testing.T) {
 		})
 	}
 }
+
+// PRIORITY 1 ISSUE TESTS
+
+// TestBytes_DataRace tests that Bytes() returns data that won't be corrupted
+// when the buffer is returned to the pool and reused.
+// This is a CRITICAL bug - the current implementation returns a reference to
+// the internal buffer which gets reset when Release() is called.
+func TestBytes_DataRace(t *testing.T) {
+	sql := sdb.NewSQLStatement()
+	sql.Append("SELECT * FROM users WHERE id =")
+	sql.AppendInt(42)
+
+	// Get bytes - this should be a safe copy
+	result := sql.Bytes()
+
+	// At this point, the buffer has been returned to the pool and reset
+	// Let's reuse the pool to prove the buffer gets corrupted
+	sql2 := sdb.NewSQLStatement()
+	sql2.Append("DIFFERENT QUERY")
+	_ = sql2.Query()
+
+	// The original result should still contain our original data
+	// Note: Append() adds trailing space, AppendInt() does not
+	expected := "SELECT * FROM users WHERE id = 42"
+	got := string(result)
+
+	if got != expected {
+		t.Errorf("Bytes() data was corrupted after buffer reuse!\ngot:  '%s'\nwant: '%s'", got, expected)
+	}
+}
+
+
+// TestFieldsCalled_PoolReuse verifies that fieldsCalled is properly reset
+// when a buffer is returned to the pool. This was the original production bug
+// causing SQL statements to start with a comma.
+func TestFieldsCalled_PoolReuse(t *testing.T) {
+	// First use: call Fields() which sets fieldsCalled = true
+	sql1 := sdb.NewSQLStatement()
+	sql1.Append("SELECT")
+	sql1.Fields("t1", []string{"id", "name"})
+	query1 := sql1.Query() // Returns to pool with Reset()
+
+	expected1 := "SELECT t1.id,t1.name "
+	if query1 != expected1 {
+		t.Errorf("First query incorrect:\ngot:  '%s'\nwant: '%s'", query1, expected1)
+	}
+
+	// Second use: get from pool and immediately call Fields()
+	// If fieldsCalled wasn't reset, this will start with a comma
+	sql2 := sdb.NewSQLStatement()
+	sql2.Append("SELECT")
+	sql2.Fields("t2", []string{"id", "email"})
+	query2 := sql2.Query()
+
+	expected2 := "SELECT t2.id,t2.email "
+	if query2 != expected2 {
+		t.Errorf("Second query has leading comma bug!\ngot:  '%s'\nwant: '%s'", query2, expected2)
+	}
+
+	// Most important: verify no leading comma after the first word
+	// This is the production bug - Fields() adding "," when fieldsCalled is true
+	if query2 == ",t2.id,t2.email " || query2 == "SELECT ,t2.id,t2.email " {
+		t.Error("CRITICAL: Query has leading comma - fieldsCalled was not reset!")
+	}
+}
+
+// TestAppendUInt_ErrorHandling tests that appendUInt doesn't silently ignore errors
+// (though in practice Write() never returns an error, this tests consistency)
+func TestAppendUInt_Consistency(t *testing.T) {
+	sql := sdb.NewSQLStatement()
+
+	// Use the internal append method that calls appendUInt
+	sql.Append(uint(12345))
+
+	got := sql.Query()
+	want := "12345 "
+
+	if got != want {
+		t.Errorf("appendUInt failed:\ngot:  '%s'\nwant: '%s'", got, want)
+	}
+}
+
+// TestRelease_ResetsAllState verifies that Release() properly resets
+// both the buffer and the fieldsCalled flag
+func TestRelease_ResetsAllState(t *testing.T) {
+	sql := sdb.NewSQLStatement()
+	sql.Append("SELECT * FROM users")
+	sql.Fields("", []string{"id", "name"})
+
+	// Manually release instead of using Query()
+	sql.Release()
+
+	// Get the same object back from the pool
+	sql2 := sdb.NewSQLStatement()
+
+	// Verify buffer is empty
+	if len(sql2.String()) != 0 {
+		t.Errorf("Buffer not reset after Release(): '%s'", sql2.String())
+	}
+
+	// Verify fieldsCalled is reset by checking Fields() doesn't add leading comma
+	sql2.Fields("t", []string{"col"})
+	result := sql2.Query()
+
+	if result[0] == ',' {
+		t.Error("fieldsCalled was not reset by Release()")
+	}
+}

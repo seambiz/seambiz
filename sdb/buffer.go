@@ -33,7 +33,19 @@ type SQLStatement struct {
 
 // NewSQLStatement return bytebuffer for a statement
 func NewSQLStatement() *SQLStatement {
-	return sqlBuffer.Get().(*SQLStatement)
+	s := sqlBuffer.Get().(*SQLStatement)
+	// Defensively reset to ensure clean state, even if previous user forgot to Release()
+	// This is safe because we own this buffer instance now from the pool
+	if len(s.buffer) != 0 || s.fieldsCalled {
+		s.Reset()
+	}
+	return s
+}
+
+// Release resets the statement and returns it to the pool.
+func (s *SQLStatement) Release() {
+	s.Reset()
+	sqlBuffer.Put(s)
 }
 
 // String returns a string representation
@@ -43,17 +55,19 @@ func (s *SQLStatement) String() string {
 
 // Query return SQL Statement as string und return the buffer to the pool.
 func (s *SQLStatement) Query() string {
-	defer sqlBuffer.Put(s)
-	defer s.Reset()
-
+	defer s.Release()
 	return s.String()
 }
 
 func (s *SQLStatement) Bytes() []byte {
-	defer sqlBuffer.Put(s)
-	defer s.Reset()
-
-	return s.buffer
+	// Capture length before making slice to avoid race with concurrent Reset()
+	n := len(s.buffer)
+	result := make([]byte, n)
+	if n > 0 {
+		copy(result, s.buffer[:n])
+	}
+	s.Release()
+	return result
 }
 
 // append a string to the sql statement and depending on @whitespace inserts a blank at the end
@@ -147,7 +161,10 @@ func (s *SQLStatement) AppendBytes(whitespace bool, bs ...[]byte) *SQLStatement 
 
 // appendUInt appends a string to the sql statement
 func (s *SQLStatement) appendUInt(n uint) {
-	s.Write(strconv.AppendInt(nil, int64(n), 10))
+	_, err := s.Write(strconv.AppendInt(nil, int64(n), 10))
+	if err != nil {
+		panic(err)
+	}
 }
 
 // AppendInt appends a string to the sql statement
@@ -179,13 +196,19 @@ func (s *SQLStatement) WriteString(str string) (int, error) {
 func (s *SQLStatement) Fields(prefix string, fields []string) {
 	if len(fields) > 0 {
 		if s.fieldsCalled {
-			s.WriteString(",")
+			_, err := s.WriteString(",")
+			if err != nil {
+				panic(err)
+			}
 		}
 		s.fieldsCalled = true
 
 		for i, f := range fields {
 			if i > 0 {
-				s.WriteString(",")
+				_, err := s.WriteString(",")
+				if err != nil {
+					panic(err)
+				}
 			}
 
 			if prefix != "" {
@@ -195,39 +218,42 @@ func (s *SQLStatement) Fields(prefix string, fields []string) {
 			}
 		}
 
-		s.WriteString(" ")
+		_, err := s.WriteString(" ")
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
 // AppendFields helper for adding fields so a select statement.
 func (s *SQLStatement) AppendFields(prepend string, prefix string, separator string, append string, fields []string) {
-	s.WriteString(prepend)
+	_, _ = s.WriteString(prepend)
 
 	for i, f := range fields {
 		if i > 0 {
-			s.WriteString(separator)
+			_, _ = s.WriteString(separator)
 		}
 
-		s.WriteString(prefix)
-		s.WriteString(f)
+		_, _ = s.WriteString(prefix)
+		_, _ = s.WriteString(f)
 	}
 
-	s.WriteString(append)
+	_, _ = s.WriteString(append)
 }
 
 // AppendFiller helper for adding placeholder to a insert statement.
 func (s *SQLStatement) AppendFiller(prepend string, separator string, append string, filler string, n int) {
 	if prepend != "" {
-		s.WriteString(prepend)
+		_, _ = s.WriteString(prepend)
 	}
 
 	for i := 0; i < n; i++ {
 		if i > 0 {
-			s.WriteString(separator)
+			_, _ = s.WriteString(separator)
 		}
 
 		s.AppendStr(filler)
 	}
 
-	s.WriteString(append)
+	_, _ = s.WriteString(append)
 }
