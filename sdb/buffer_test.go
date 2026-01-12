@@ -3,10 +3,27 @@ package sdb_test
 import (
 	"math/rand"
 	"strconv"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/seambiz/seambiz/sdb"
 )
+
+// Helper functions for older Go versions
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
 
 func TestAppend(t *testing.T) {
 	sql := sdb.NewSQLStatement()
@@ -39,9 +56,8 @@ func TestAppendRaw(t *testing.T) {
 }
 
 func TestAppendInt(t *testing.T) {
-	sql := sdb.NewSQLStatement()
-
 	for i := 0; i < 100; i++ {
+		sql := sdb.NewSQLStatement()
 		n := int(rand.Int31())
 		sql.AppendInt(n)
 
@@ -332,5 +348,167 @@ func TestRelease_ResetsAllState(t *testing.T) {
 
 	if result[0] == ',' {
 		t.Error("fieldsCalled was not reset by Release()")
+	}
+}
+
+// TestConcurrentStatementBuilding_RaceCondition tests that concurrent goroutines
+// building SQL statements don't share or corrupt each other's buffers.
+//
+// This reproduces the production bug where:
+// - Order query: "SELECT o.id, o.created_at... FROM order o..."
+// - Sensor query: "SELECT S.ver, S.geo_lat... FROM sensor S..."
+// Were being built concurrently and ended up with interleaved content like:
+// "SELECT o.id typ,S.ver,S.geo_lat...S.FROM order o..."
+//
+// Run with: go test -race -run TestConcurrentStatementBuilding_RaceCondition
+func TestConcurrentStatementBuilding_RaceCondition(t *testing.T) {
+	const numGoroutines = 100
+	const iterations = 50
+
+	var wg sync.WaitGroup
+	errors := make(chan string, numGoroutines*iterations)
+
+	for g := 0; g < numGoroutines; g++ {
+		wg.Add(1)
+		go func(goroutineID int) {
+			defer wg.Done()
+
+			for i := 0; i < iterations; i++ {
+				// Simulate order query
+				if goroutineID%2 == 0 {
+					sql := sdb.NewSQLStatement()
+					sql.AppendStr("SELECT ")
+					sql.AppendStr("o.id, ")
+					sql.AppendStr("o.created_at, ")
+					sql.AppendStr("o.status ")
+					sql.AppendStr("FROM order o ")
+					sql.AppendStr("WHERE o.company_id = ?")
+
+					query := sql.Query()
+
+					// Validate: query must start with "SELECT o" (order query)
+					// and must NOT contain sensor columns
+					if !strings.HasPrefix(query, "SELECT o") {
+						errors <- "Order query doesn't start with 'SELECT o': " + query[:minInt(50, len(query))]
+					}
+					if strings.Contains(query, "S.ver") || strings.Contains(query, "S.geo") {
+						errors <- "Order query contains sensor columns (buffer corruption): " + query[:minInt(100, len(query))]
+					}
+					if query == "" {
+						errors <- "Order query is empty (race condition)"
+					}
+				} else {
+					// Simulate sensor query
+					sql := sdb.NewSQLStatement()
+					sql.AppendStr("SELECT ")
+					sql.AppendStr("S.id, ")
+					sql.AppendStr("S.ver, ")
+					sql.AppendStr("S.geo_lat, ")
+					sql.AppendStr("S.geo_long ")
+					sql.AppendStr("FROM sensor S ")
+					sql.AppendStr("WHERE S.company_id = ?")
+
+					query := sql.Query()
+
+					// Validate: query must start with "SELECT S" (sensor query)
+					// and must NOT contain order columns
+					if !strings.HasPrefix(query, "SELECT S") {
+						errors <- "Sensor query doesn't start with 'SELECT S': " + query[:minInt(50, len(query))]
+					}
+					if strings.Contains(query, "o.id") || strings.Contains(query, "o.created") {
+						errors <- "Sensor query contains order columns (buffer corruption): " + query[:minInt(100, len(query))]
+					}
+					if query == "" {
+						errors <- "Sensor query is empty (race condition)"
+					}
+				}
+			}
+		}(g)
+	}
+
+	wg.Wait()
+	close(errors)
+
+	// Collect all errors
+	var errMsgs []string
+	for err := range errors {
+		errMsgs = append(errMsgs, err)
+	}
+
+	if len(errMsgs) > 0 {
+		t.Errorf("Found %d buffer corruption/race errors:\n", len(errMsgs))
+		// Show first 10 errors to avoid flooding output
+		for i, msg := range errMsgs {
+			if i >= 10 {
+				t.Errorf("... and %d more errors", len(errMsgs)-10)
+				break
+			}
+			t.Errorf("  - %s", msg)
+		}
+	}
+}
+
+// TestConcurrentStatementBuilding_NoInterleaving is a simpler test that
+// verifies statements built concurrently don't get mixed together.
+func TestConcurrentStatementBuilding_NoInterleaving(t *testing.T) {
+	const numGoroutines = 50
+
+	var wg sync.WaitGroup
+	results := make([]string, numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+
+			sql := sdb.NewSQLStatement()
+
+			// Each goroutine builds a unique query with its ID
+			marker := strconv.Itoa(id)
+			sql.AppendStr("QUERY_")
+			sql.AppendStr(marker)
+			sql.AppendStr("_START ")
+			// Add some bulk to increase chance of interleaving
+			for j := 0; j < 10; j++ {
+				sql.AppendStr("FIELD_")
+				sql.AppendStr(marker)
+				sql.AppendStr("_")
+				sql.AppendInt(j)
+				sql.AppendStr(" ")
+			}
+			sql.AppendStr("QUERY_")
+			sql.AppendStr(marker)
+			sql.AppendStr("_END")
+
+			results[id] = sql.Query()
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Verify each result contains ONLY its own marker
+	for id, result := range results {
+		marker := strconv.Itoa(id)
+		expectedStart := "QUERY_" + marker + "_START"
+		expectedEnd := "QUERY_" + marker + "_END"
+
+		if !strings.HasPrefix(result, expectedStart) {
+			t.Errorf("Goroutine %d: result doesn't start correctly\ngot: %s", id, result[:minInt(50, len(result))])
+		}
+		if !strings.HasSuffix(result, expectedEnd) {
+			t.Errorf("Goroutine %d: result doesn't end correctly\ngot: ...%s", id, result[maxInt(0, len(result)-50):])
+		}
+
+		// Check for contamination from other goroutines
+		for otherID := 0; otherID < numGoroutines; otherID++ {
+			if otherID == id {
+				continue
+			}
+			otherMarker := "QUERY_" + strconv.Itoa(otherID) + "_"
+			if strings.Contains(result, otherMarker) {
+				t.Errorf("Goroutine %d: result contains content from goroutine %d (buffer sharing detected)", id, otherID)
+				break
+			}
+		}
 	}
 }

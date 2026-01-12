@@ -2,7 +2,6 @@ package sdb
 
 import (
 	"strconv"
-	"sync"
 )
 
 const (
@@ -16,36 +15,23 @@ const (
 	OUTER = "OUTER"
 )
 
-// nolint[gochecknoblobals]
-var sqlBuffer = &sync.Pool{
-	New: func() interface{} {
-		return &SQLStatement{
-			buffer: make([]byte, 0, 1024),
-		}
-	},
-}
-
-// SQLStatement is a wrapper around bytepufferpool for nicer usage
+// SQLStatement is a wrapper for building SQL queries
 type SQLStatement struct {
 	buffer       []byte
 	fieldsCalled bool
 }
 
-// NewSQLStatement return bytebuffer for a statement
+// NewSQLStatement creates a new SQL statement builder
 func NewSQLStatement() *SQLStatement {
-	s := sqlBuffer.Get().(*SQLStatement)
-	// Defensively reset to ensure clean state, even if previous user forgot to Release()
-	// This is safe because we own this buffer instance now from the pool
-	if len(s.buffer) != 0 || s.fieldsCalled {
-		s.Reset()
+	return &SQLStatement{
+		buffer: make([]byte, 0, 1024),
 	}
-	return s
 }
 
-// Release resets the statement and returns it to the pool.
+// Release is a no-op kept for backwards compatibility.
+// The buffer will be garbage collected when no longer referenced.
 func (s *SQLStatement) Release() {
-	s.Reset()
-	sqlBuffer.Put(s)
+	// No-op - buffer will be garbage collected
 }
 
 // String returns a string representation
@@ -53,20 +39,15 @@ func (s *SQLStatement) String() string {
 	return string(s.buffer)
 }
 
-// Query return SQL Statement as string und return the buffer to the pool.
+// Query returns the SQL statement as a string.
 func (s *SQLStatement) Query() string {
-	defer s.Release()
 	return s.String()
 }
 
+// Bytes returns the SQL statement as a byte slice.
 func (s *SQLStatement) Bytes() []byte {
-	// Capture length before making slice to avoid race with concurrent Reset()
-	n := len(s.buffer)
-	result := make([]byte, n)
-	if n > 0 {
-		copy(result, s.buffer[:n])
-	}
-	s.Release()
+	result := make([]byte, len(s.buffer))
+	copy(result, s.buffer)
 	return result
 }
 
